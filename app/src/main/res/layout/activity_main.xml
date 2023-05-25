@@ -4,10 +4,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_gravity="center_horizontal"
     tools:context=".MainActivity">
-    <fragment
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment" />
+
+    <Button
+        android:id="@+id/passenger"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_margin="15dp"
+        android:text="승객"></Button>
+    <Button
+        android:id="@+id/taxiDriver"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:text="택시기사"></Button>
+<!--    <fragment-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="match_parent"-->
+<!--        android:id="@+id/map"-->
+<!--        android:name="com.google.android.gms.maps.SupportMapFragment" />-->
 </LinearLayout>
