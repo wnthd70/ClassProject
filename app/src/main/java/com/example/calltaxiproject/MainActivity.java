@@ -45,25 +45,5 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-
-//        SupportMapFragment mapFragment = (SupportMapFragment)getSupportFragmentManager().findFragmentById(R.id.map);
-//        mapFragment.getMapAsync(this);
     }
-
-    // NULL이 아닌 GoogleMap 객체를 파라미터로 제공해 줄 수 있을 때 호출
-//    @Override
-//    public void onMapReady(final GoogleMap googleMap) {
-//        mMap = googleMap;
-//
-//        LatLng SEOUL = new LatLng(37.556, 126.97);
-//
-//        MarkerOptions markerOptions = new MarkerOptions();
-//        markerOptions.position(SEOUL);
-//        markerOptions.title("서울");
-//        markerOptions.snippet("한국 수도");
-//
-//        mMap.addMarker(markerOptions);
-//
-//        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 10));
-//    }
 }
