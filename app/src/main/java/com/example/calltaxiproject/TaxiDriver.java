@@ -33,7 +33,7 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
     private GoogleMap myMap;
     Button btn1;
     @Override
-    protected void onCreate(Bundle savedInstanceState){
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.taxi_driver_main);
 
@@ -49,14 +49,14 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
         // 위치 권한 요청 //
         int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION);
 
-        if(permissionCheck == PackageManager.PERMISSION_DENIED){ //포그라운드 위치 권한 확인
+        if (permissionCheck == PackageManager.PERMISSION_DENIED) { //포그라운드 위치 권한 확인
             //위치 권한 요청
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
         }
 
         int permissionCheck2 = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION);
 
-        if(permissionCheck2 == PackageManager.PERMISSION_DENIED){ //백그라운드 위치 권한 확인
+        if (permissionCheck2 == PackageManager.PERMISSION_DENIED) { //백그라운드 위치 권한 확인
             //위치 권한 요청
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE);
         }
@@ -78,8 +78,11 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
                     }
                 }
             }
-        }
+        });
+
     }
+
+
             @Override
             public void onMapReady(final GoogleMap googleMap) {
 
@@ -109,4 +112,4 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
                     }
                 }
             }
-}
+        }
