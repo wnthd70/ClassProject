@@ -206,15 +206,15 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         .strokeWidth(5)
                         .strokeColor(Color.BLACK)
                         .clickable(true));
-                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
-
-                    @Override
-                    public void onMapClick(@NonNull LatLng latLng) {
-                        public void onMapClick(LatLng point){
-                            MarkerOptions mOptions = new MarkerOptions();
-                        }
-                    }
-                });
+//                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
+//
+//                    @Override
+//                    public void onMapClick(@NonNull LatLng latLng) {
+//                        public void onMapClick(LatLng point){
+//                            MarkerOptions mOptions = new MarkerOptions();
+//                        }
+//                    }
+//                });
 
 //                LatLng SEOUL = new LatLng(37.556, 126.97);
 //

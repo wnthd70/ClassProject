@@ -1,18 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:layout_gravity="center_horizontal"
+    android:orientation="vertical">
 
-    <TextView
+    <EditText
+        android:id="@+id/edt1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:inputType="number"
+        android:maxLength="4" />
+    <Button
+        android:id="@+id/btn1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="택시기사 메인 화면"
-        ></TextView>
+        android:layout_gravity="center"
+        android:text="차량 번호 입력하기"></Button>
     <Button
         android:id="@+id/backBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="돌아가기"></Button>
-
+        android:layout_gravity="center"
+        android:text="뒤로가기"></Button>
 </LinearLayout>
