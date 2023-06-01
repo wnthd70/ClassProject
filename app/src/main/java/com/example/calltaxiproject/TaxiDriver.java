@@ -28,6 +28,8 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
     Button backBtn;
     Marker myMarker;
     Circle myCircle;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1; // 권한 요청 식별에 사용되는 값
+    private static final int BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE = 2; // 백그라운드 위치 권한 요청 코드
     private GoogleMap myMap;
     Button btn1;
     @Override
@@ -58,24 +60,25 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
             //위치 권한 요청
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE);
         }
-        btn1.setOnClickListener(new View.OnClickListener(){
+        btn1.setOnClickListener(new View.OnClickListener() {
             @Override
-            public  void onClick(View view) {
+            public void onClick(View view) {
                 setContentView(R.layout.taxidriver2);
                 Toast.makeText(getApplicationContext(), "내 위치를 찾습니다.", Toast.LENGTH_SHORT).show();
-                LocationManager locationManager =(LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                 if (ActivityCompat.checkSelfPermission(TaxiDriver.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                    if(location!=null){
+                    if (location != null) {
                         double latitude = location.getLatitude();
                         double longitude = location.getLongitude();
-                        LatLng latLng =new LatLng(latitude, longitude);
+                        LatLng latLng = new LatLng(latitude, longitude);
 
                         myMarker = myMap.addMarker(new MarkerOptions().position(latLng).title("내 위치"));
                         myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+                    }
+                }
             }
-
-        });
+        }
     }
             @Override
             public void onMapReady(final GoogleMap googleMap) {
@@ -85,7 +88,7 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
                 LatLng SEOUL = new LatLng(37.556, 126.97);
                 myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 15));
                 LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.checkSelfPermission(TaxiDriver.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                     if (location != null) {
 
@@ -103,31 +106,7 @@ public class TaxiDriver extends AppCompatActivity implements OnMapReadyCallback 
                                 .strokeWidth(5)
                                 .strokeColor(Color.BLACK)
                                 .clickable(true));
-//                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
-//
-//                    @Override
-//                    public void onMapClick(@NonNull LatLng latLng) {
-//                        public void onMapClick(LatLng point){
-//                            MarkerOptions mOptions = new MarkerOptions();
-//                        }
-//                    }
-//                });
-
-//                LatLng SEOUL = new LatLng(37.556, 126.97);
-//
-//                MarkerOptions markerOptions = new MarkerOptions();
-//                markerOptions.position(SEOUL);
-//                markerOptions.title("서울");
-//                markerOptions.snippet("한국 수도");
-//
-//                mMap.addMarker(markerOptions);
-//
-//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 10));
                     }
                 }
             }
 }
-
-
-
-
