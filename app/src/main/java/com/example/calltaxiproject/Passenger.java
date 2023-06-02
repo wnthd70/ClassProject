@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+import java.util.UUID;
 
 public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -44,12 +45,16 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
     LocationListener locationListener;
     Double latitude;
     Double longitude;
-    Marker myMarker;
+    Marker myMarker, callMarker, taxiMarker;
     Circle myCircle;
+    double callLat;
+    double callLon;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.passenger_main);
+
+        UUID uuid = UUID.randomUUID(); // 클라이언트 고유 식별자 생성
 
         backBtn = (Button) findViewById(R.id.backBtn);
         call = (Button) findViewById(R.id.call);
@@ -111,27 +116,8 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                                     .strokeWidth(5)
                                     .strokeColor(Color.BLACK)
                                     .clickable(true));
-
-//                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng,15));
-
-//                            if (circle != null){
-//                                circle.remove();
-//                            }
-//                            circle = mMap.addCircle(new CircleOptions()
-//                                    .center(latlng)
-//                                    .radius(100)
-//                                    .strokeWidth(5)
-//                                    .strokeColor(Color.BLACK)
-//                                    .clickable(true));
-
                             System.out.println("위도 : "+ latitude);
                             System.out.println("경도 : "+ longitude);
-//                            runOnUiThread(new Runnable() {
-//                                @Override
-//                                public void run() {
-//                                    
-//                                }
-//                            });
                         }
                         @Override
                         public void onProviderDisabled(String provider) { // 사용자가 GPS를 끄는 등의 행동을 해서 위치값에 접근할 수 없을 때 호출된다.
@@ -198,14 +184,37 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
 
                 myMarker = mMap.addMarker(new MarkerOptions().position(latLng).title("내 위치"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14));
 
-                myCircle = mMap.addCircle(new CircleOptions()
-                        .center(latLng)
-                        .radius(100)
-                        .strokeWidth(5)
-                        .strokeColor(Color.BLACK)
-                        .clickable(true));
+//                myCircle = mMap.addCircle(new CircleOptions()
+//                        .center(latLng)
+//                        .radius(100)
+//                        .strokeWidth(5)
+//                        .strokeColor(Color.BLACK)
+//                        .clickable(true));
+
+                // 맵 터치 이벤트 구현 //
+                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
+                    @Override
+                    public void onMapClick(LatLng point) {
+                        MarkerOptions mOptions = new MarkerOptions();
+                        // 마커 타이틀
+                        mOptions.title("마커 좌표");
+                        callLat = point.latitude; // 위도
+                        callLon = point.longitude; // 경도
+                        LatLng callLatLng = new LatLng(callLat, callLon);
+                        // 마커의 스니펫(간단한 텍스트) 설정
+                        mOptions.snippet("호출 지점");
+                        // LatLng: 위도 경도 쌍을 나타냄
+                        mOptions.position(callLatLng);
+                        Toast.makeText(getApplicationContext(), "호출 좌표 : "+callLatLng, Toast.LENGTH_SHORT).show();
+                        // 마커(핀) 추가
+                        if(callMarker!=null){
+                            callMarker.remove();
+                        }
+                        callMarker = mMap.addMarker(mOptions);
+                    }
+                });
 //                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
 //
 //                    @Override
