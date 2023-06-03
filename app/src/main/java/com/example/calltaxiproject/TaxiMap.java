@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.widget.Toast;
@@ -25,12 +26,28 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.UUID;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+
 public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
     Marker myMarker;
     Circle myCircle;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1; // 권한 요청 식별에 사용되는 값
     private static final int BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE = 2; // 백그라운드 위치 권한 요청 코드
+    private OkHttpClient client;
+    private WebSocket webSocket;
     private GoogleMap myMap;
+    private boolean cameraFirst = false;
+    int carNum;
+    UUID uuid;
+    LocationListener locationListener;
     private boolean isMapReady = false; // 맵이 준비되었는지 여부를 확인하기 위한 변수
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +55,19 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
         setContentView(R.layout.taxidriver2);
 
         Intent getIntent = getIntent();
-        int carNum = getIntent.getIntExtra("차량번호", 0);
+        carNum = getIntent.getIntExtra("차량번호", 0);
+
+        uuid = UUID.randomUUID(); // 클라이언트 고유 식별자 생성
+
+        client = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .url("ws://49.50.172.178:8080")
+                .build();
+
+        WebSocketListener webSocketListener = new TaxiMap.TaxiWebSocketListener();
+        webSocket = client.newWebSocket(request, webSocketListener);
+
         // 위치 권한 요청 //
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
 
@@ -88,25 +117,66 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(getApplicationContext(), "위치 권한 수락", Toast.LENGTH_SHORT).show();
-            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
+            locationListener = new LocationListener() {
+                @Override
+                public void onLocationChanged(Location location) { // 위경도 값이 바뀔때마다 호출되는 콜백 함수
+//                            Toast.makeText(getApplicationContext(), "위치를 찾습니다.", Toast.LENGTH_SHORT).show();
+                    double latitude = location.getLatitude();
+                    double longitude = location.getLongitude();
+                    LatLng latlng = new LatLng(latitude, longitude);
 
-                double latitude = location.getLatitude();
-                double longitude = location.getLongitude();
-                LatLng latlng = new LatLng(latitude, longitude);
-                if(latlng==null){
-                    System.out.println("널입니다.");
-                }else{
-                    System.out.println("latlng : "+latlng);
-                }
+                    // 기존 마커 제거
+                    if (myMarker != null) {
+                        myMarker.remove();
+                    }
+                    myMarker = myMap.addMarker(new MarkerOptions().position(latlng).title("내 위치"));
+                    if(cameraFirst==false) {
+                        myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, 18));
+                        cameraFirst = true;
+                    }
+                    if(webSocket!=null){
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("택시식별자",uuid);
+                            jsonObject.put("택시번호",carNum);
+                            jsonObject.put("택시위도",latitude);
+                            jsonObject.put("택시경도",longitude);
+                        }catch(JSONException e){
+                            e.printStackTrace();
+                            System.out.println("JSON 에러");
+                        }
+                        webSocket.send(jsonObject.toString());
+                    }
+                    else{ //웹소켓 null부분
+                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+                    }
 
-                if(myMarker!=null){
-                    myMarker.remove();
+                    System.out.println(latlng);
                 }
-                myMarker = myMap.addMarker(new MarkerOptions().position(latlng).title("현재위치"));
-                myMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, 17));
-                myCircle = myMap.addCircle(new CircleOptions().center(latlng).radius(3).strokeWidth(10));
-            }
+            };
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+        }else{
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            ActivityCompat.requestPermissions(TaxiMap.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
+            Toast.makeText(getApplicationContext(), "에러입니다.", Toast.LENGTH_SHORT).show();
+            return;
         }
+    }
+    private class TaxiWebSocketListener extends WebSocketListener {
+        @Override
+        public void onOpen(WebSocket webSocket, okhttp3.Response response) {
+            // WebSocket 연결이 수립되었을 때 실행되는 부분
+            System.out.println("서버와 최초 연결됨");
+        }
+
+        // 다른 WebSocketListener의 메서드들을 필요에 따라 오버라이드하여 구현
+        // ...
+
     }
 }

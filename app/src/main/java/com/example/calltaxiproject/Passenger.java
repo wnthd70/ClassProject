@@ -9,6 +9,8 @@ import com.google.android.gms.maps.GoogleMap.OnMyLocationButtonClickListener;
 import com.google.android.gms.maps.GoogleMap.OnMyLocationClickListener;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -18,7 +20,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -32,7 +36,16 @@ import androidx.core.content.ContextCompat;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.UUID;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -49,6 +62,10 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
     Circle myCircle;
     double callLat;
     double callLon;
+    private OkHttpClient client;
+    private WebSocket webSocket;
+    private boolean cameraFirst = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,19 +73,21 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
         UUID uuid = UUID.randomUUID(); // 클라이언트 고유 식별자 생성
 
+        client = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .url("ws://49.50.172.178:8080")
+                .build();
+
+        WebSocketListener webSocketListener = new MyWebSocketListener();
+        webSocket = client.newWebSocket(request, webSocketListener);
+
+
+        System.out.println("웹소켓 정보 : " + webSocket);
+
         backBtn = (Button) findViewById(R.id.backBtn);
         call = (Button) findViewById(R.id.call);
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
-
-        backBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                finish();
-            }
-        });
         // 위치 권한 요청 //
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
 
@@ -85,67 +104,69 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
         }
         // 위치 권한 요청 //
 
-        call.setOnClickListener(new View.OnClickListener() { // 임시로 내 위치 GPS
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
+
+        backBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (ActivityCompat.checkSelfPermission(Passenger.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(Passenger.this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-//                    Toast.makeText(getApplicationContext(), "위치 권한이 허용되었습니다.", Toast.LENGTH_SHORT).show();
-                    LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                    Toast.makeText(getApplicationContext(), "택시를 호출중입니다.", Toast.LENGTH_SHORT).show();
-                    locationListener = new LocationListener() {
-                        @Override
-                        public void onLocationChanged(Location location) { // 위경도 값이 바뀔때마다 호출되는 콜백 함수
-//                            Toast.makeText(getApplicationContext(), "위치를 찾습니다.", Toast.LENGTH_SHORT).show();
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
-                            LatLng latlng = new LatLng(latitude, longitude);
-                            System.out.println(latlng);
+                finish();
+            }
+        });
 
-                            // 기존 마커 제거
-                            if (myMarker != null) {
-                                myMarker.remove();
-                            }
-                            if (myCircle != null){
-                                myCircle.remove();
-                            }
-                            myMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("내 위치"));
-                            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, 18));
-                            myCircle = mMap.addCircle(new CircleOptions()
-                                    .center(latlng)
-                                    .radius(100) // 반경 100미터 내
-                                    .strokeWidth(5)
-                                    .strokeColor(Color.BLACK)
-                                    .clickable(true));
-                            System.out.println("위도 : "+ latitude);
-                            System.out.println("경도 : "+ longitude);
+        call.setOnClickListener(new View.OnClickListener() { // 새로 만들기
+            @Override
+            public void onClick(View view) {
+                if(webSocket!=null){
+                    if(callMarker!=null){
+                        UUID callId = UUID.randomUUID();
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("승객식별자",uuid);
+                            jsonObject.put("호출번호",callId);
+                            jsonObject.put("호출위도",callLat);
+                            jsonObject.put("호출경도",callLon);
+
+                    }catch(JSONException e){
+                            e.printStackTrace();
+                            System.out.println("JSON 에러");
                         }
-                        @Override
-                        public void onProviderDisabled(String provider) { // 사용자가 GPS를 끄는 등의 행동을 해서 위치값에 접근할 수 없을 때 호출된다.
-                            System.out.println("위치값 접근 에러");
-                        }
-                        @Override
-                        public void onProviderEnabled(String provider) {
-                            //사용자가 GPS를 on하는 등의 행동을 해서 위치값에 접근할 수 있게 되었을 때 호출된다.
-                            //그냥 실내에 들어가서 GPS값이 안받아지기 시작하면 호출되는 함수가 아니다.
-                            System.out.println("GPS 켜짐");
-                        }
-                    };
-
-                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-
-
-                }else{
-                    // TODO: Consider calling
-                    //    ActivityCompat#requestPermissions
-                    // here to request the missing permissions, and then overriding
-                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                    //                                          int[] grantResults)
-                    // to handle the case where the user grants the permission. See the documentation
-                    // for ActivityCompat#requestPermissions for more details.
-                    ActivityCompat.requestPermissions(Passenger.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
-                    Toast.makeText(getApplicationContext(), "에러입니다.", Toast.LENGTH_SHORT).show();
-                    return;
+                        webSocket.send(jsonObject.toString());
+                        Toast.makeText(getApplicationContext(), "호출됨", Toast.LENGTH_SHORT).show();
+                    }   else{
+                        Toast.makeText(getApplicationContext(), "호출 지점을 선택해주세요.", Toast.LENGTH_SHORT).show();
+                    }
                 }
+                else{ //웹소켓 null부분
+                    Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        call.setOnClickListener(new View.OnClickListener() { // 택시 호출
+            @Override
+            public void onClick(View view) {
+                if(callMarker != null){
+                    if(webSocket!=null){
+                        LatLng callLatLng = new LatLng(callLat, callLon);
+                        UUID callId = UUID.randomUUID();
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("승객식별자",uuid);
+                            jsonObject.put("호출번호",callId);
+                            jsonObject.put("호출위도",callLat);
+                            jsonObject.put("호출경도",callLon);
+                        }catch(JSONException e){
+                            e.printStackTrace();
+                            System.out.println("JSON 에러");
+                        }
+                        webSocket.send(jsonObject.toString());
+                    }
+                }
+                    else{ //웹소켓 null부분
+                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+                    }
             }
         });
 
@@ -170,21 +191,82 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
     public void onMapReady(final GoogleMap googleMap) {
 
         mMap = googleMap;
-
+        BitmapDrawable bitmapDrawable = (BitmapDrawable)getResources().getDrawable(R.drawable.call_marker);
+        Bitmap bitmap = bitmapDrawable.getBitmap();
         LatLng SEOUL = new LatLng(37.556, 126.97);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 15));
+
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
+            locationListener = new LocationListener() {
+                @Override
+                public void onLocationChanged(Location location) { // 위경도 값이 바뀔때마다 호출되는 콜백 함수
+//                            Toast.makeText(getApplicationContext(), "위치를 찾습니다.", Toast.LENGTH_SHORT).show();
+                    latitude = location.getLatitude();
+                    longitude = location.getLongitude();
+                    LatLng latlng = new LatLng(latitude, longitude);
+                    System.out.println(latlng);
 
-                double latitude = location.getLatitude();
-                double longitude = location.getLongitude();
-                LatLng latLng = new LatLng(latitude, longitude);
+                    // 기존 마커 제거
+                    if (myMarker != null) {
+                        myMarker.remove();
+                    }
+                    if (myCircle != null){
+                        myCircle.remove();
+                    }
+                    myMarker = mMap.addMarker(new MarkerOptions().position(latlng).title("내 위치"));
+                    if(cameraFirst==false) {
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, 18));
+                        cameraFirst = true;
+                    }
+                    System.out.println("카메라 움직임: "+cameraFirst);
+//                            myCircle = mMap.addCircle(new CircleOptions()
+//                                    .center(latlng)
+//                                    .radius(100) // 반경 100미터 내
+//                                    .strokeWidth(5)
+//                                    .strokeColor(Color.BLACK)
+//                                    .clickable(true));
+//                            System.out.println("위도 : "+ latitude);
+//                            System.out.println("경도 : "+ longitude);
+                }
+                @Override
+                public void onProviderDisabled(String provider) { // 사용자가 GPS를 끄는 등의 행동을 해서 위치값에 접근할 수 없을 때 호출된다.
+                    System.out.println("위치값 접근 에러");
+                }
+                @Override
+                public void onProviderEnabled(String provider) {
+                    //사용자가 GPS를 on하는 등의 행동을 해서 위치값에 접근할 수 있게 되었을 때 호출된다.
+                    //그냥 실내에 들어가서 GPS값이 안받아지기 시작하면 호출되는 함수가 아니다.
+                    System.out.println("GPS 켜짐");
+                }
+            };
+
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
 
 
-                myMarker = mMap.addMarker(new MarkerOptions().position(latLng).title("내 위치"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14));
+        }else{
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            ActivityCompat.requestPermissions(Passenger.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
+            Toast.makeText(getApplicationContext(), "에러입니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+//            Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+//            if (location != null) {
+//
+//                double latitude = location.getLatitude();
+//                double longitude = location.getLongitude();
+//                LatLng latLng = new LatLng(latitude, longitude);
+//
+//
+//                myMarker = mMap.addMarker(new MarkerOptions().position(latLng).title("내 위치"));
+//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14));
 
 //                myCircle = mMap.addCircle(new CircleOptions()
 //                        .center(latLng)
@@ -200,6 +282,7 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         MarkerOptions mOptions = new MarkerOptions();
                         // 마커 타이틀
                         mOptions.title("마커 좌표");
+                        mOptions.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
                         callLat = point.latitude; // 위도
                         callLon = point.longitude; // 경도
                         LatLng callLatLng = new LatLng(callLat, callLon);
@@ -215,28 +298,6 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         callMarker = mMap.addMarker(mOptions);
                     }
                 });
-//                mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener(){
-//
-//                    @Override
-//                    public void onMapClick(@NonNull LatLng latLng) {
-//                        public void onMapClick(LatLng point){
-//                            MarkerOptions mOptions = new MarkerOptions();
-//                        }
-//                    }
-//                });
-
-//                LatLng SEOUL = new LatLng(37.556, 126.97);
-//
-//                MarkerOptions markerOptions = new MarkerOptions();
-//                markerOptions.position(SEOUL);
-//                markerOptions.title("서울");
-//                markerOptions.snippet("한국 수도");
-//
-//                mMap.addMarker(markerOptions);
-//
-//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 10));
-            }
-        }
     }
 
     @Override
@@ -249,6 +310,17 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                 Toast.makeText(getApplicationContext(), "위치 권한을 거부합니다.", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+    private class MyWebSocketListener extends WebSocketListener {
+        @Override
+        public void onOpen(WebSocket webSocket, okhttp3.Response response) {
+            // WebSocket 연결이 수립되었을 때 실행되는 부분
+            System.out.println("서버와 최초 연결됨");
+        }
+
+        // 다른 WebSocketListener의 메서드들을 필요에 따라 오버라이드하여 구현
+        // ...
+
     }
 } // 클래스 괄호
 
