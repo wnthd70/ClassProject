@@ -54,7 +54,7 @@ public class TaxiDriver extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), TaxiMap.class);
-                int num = Integer.parseInt(carNum.getText().toString());
+                String num = carNum.getText().toString();
                 intent.putExtra("차량번호", num);
                 startActivity(intent);
             }

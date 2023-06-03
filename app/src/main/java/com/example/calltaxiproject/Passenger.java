@@ -19,6 +19,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -29,6 +30,7 @@ import android.location.LocationManager;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -65,6 +67,8 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
     private OkHttpClient client;
     private WebSocket webSocket;
     private boolean cameraFirst = false;
+    private int user_id;
+    private String taxiNum;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,39 +112,11 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
         mapFragment.getMapAsync(this);
 
 
+
         backBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 finish();
-            }
-        });
-
-        call.setOnClickListener(new View.OnClickListener() { // 새로 만들기
-            @Override
-            public void onClick(View view) {
-                if(webSocket!=null){
-                    if(callMarker!=null){
-                        UUID callId = UUID.randomUUID();
-                        JSONObject jsonObject = new JSONObject();
-                        try {
-                            jsonObject.put("승객식별자",uuid);
-                            jsonObject.put("호출번호",callId);
-                            jsonObject.put("호출위도",callLat);
-                            jsonObject.put("호출경도",callLon);
-
-                    }catch(JSONException e){
-                            e.printStackTrace();
-                            System.out.println("JSON 에러");
-                        }
-                        webSocket.send(jsonObject.toString());
-                        Toast.makeText(getApplicationContext(), "호출됨", Toast.LENGTH_SHORT).show();
-                    }   else{
-                        Toast.makeText(getApplicationContext(), "호출 지점을 선택해주세요.", Toast.LENGTH_SHORT).show();
-                    }
-                }
-                else{ //웹소켓 null부분
-                    Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
-                }
             }
         });
 
@@ -152,8 +128,9 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         LatLng callLatLng = new LatLng(callLat, callLon);
                         UUID callId = UUID.randomUUID();
                         JSONObject jsonObject = new JSONObject();
+                        JSONObject call = new JSONObject();
                         try {
-                            jsonObject.put("승객식별자",uuid);
+                            jsonObject.put("식별자",user_id);
                             jsonObject.put("호출번호",callId);
                             jsonObject.put("호출위도",callLat);
                             jsonObject.put("호출경도",callLon);
@@ -176,7 +153,14 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
 
     }
-
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//        if(webSocket!=null){
+//            webSocket.close(1000,"앱 종료됨");
+//            webSocket = null;
+//        }
+//    }
 
 //    @Override
 //    protected void onStop() { // 앱이 종료될때 업데이트도 중지
@@ -221,6 +205,22 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         cameraFirst = true;
                     }
                     System.out.println("카메라 움직임: "+cameraFirst);
+
+                    if(webSocket!=null){
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("식별자",user_id);
+                            jsonObject.put("승객위도",latitude);
+                            jsonObject.put("승객경도",longitude);
+                        }catch(JSONException e){
+                            e.printStackTrace();
+                            System.out.println("JSON 에러");
+                        }
+                        webSocket.send(jsonObject.toString());
+                    }
+                    else{ //웹소켓 null부분
+                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+                    }
 //                            myCircle = mMap.addCircle(new CircleOptions()
 //                                    .center(latlng)
 //                                    .radius(100) // 반경 100미터 내
@@ -317,10 +317,44 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
             // WebSocket 연결이 수립되었을 때 실행되는 부분
             System.out.println("서버와 최초 연결됨");
         }
-
+        @Override
+        public void onMessage(WebSocket webSocket, String message) {
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = new JSONObject(message);
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+            if(jsonObject.has("connection")) {
+                try {
+                    user_id = jsonObject.getInt("user_id");
+                    String text = jsonObject.getString("msg");
+                    System.out.println(text);
+                    System.out.println("당신의 식별자 : " + user_id);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (jsonObject.has("taxiNum")) { // 택시가 호출을 수락했을때
+                try{
+                    taxiNum = jsonObject.getString("taxiNum");
+                    taxiNumInfo();
+                    System.out.println("택시 번호 받음 : "+taxiNum);
+                } catch (JSONException e){
+                    throw new RuntimeException(e);
+                }
+            }
+            System.out.println("서버로부터 메시지 수신: " + message);
+        }
         // 다른 WebSocketListener의 메서드들을 필요에 따라 오버라이드하여 구현
-        // ...
+    }
 
+    public void taxiNumInfo(){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), "호출한 택시 번호 : "+taxiNum, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 } // 클래스 괄호
 

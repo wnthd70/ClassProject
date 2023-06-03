@@ -2,6 +2,7 @@ package com.example.calltaxiproject;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -12,6 +13,7 @@ import android.os.Bundle;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -45,8 +47,9 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
     private WebSocket webSocket;
     private GoogleMap myMap;
     private boolean cameraFirst = false;
-    int carNum;
-    UUID uuid;
+    String carNum;
+    int user_id;
+    int call_user_id;
     LocationListener locationListener;
     private boolean isMapReady = false; // 맵이 준비되었는지 여부를 확인하기 위한 변수
 
@@ -55,9 +58,7 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
         setContentView(R.layout.taxidriver2);
 
         Intent getIntent = getIntent();
-        carNum = getIntent.getIntExtra("차량번호", 0);
-
-        uuid = UUID.randomUUID(); // 클라이언트 고유 식별자 생성
+        carNum = getIntent.getStringExtra("차량번호");
 
         client = new OkHttpClient();
 
@@ -107,6 +108,15 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
 
     }
 
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//        if(webSocket!=null){
+//            webSocket.close(1000,"앱 종료됨");
+//            webSocket = null;
+//        }
+//    }
+
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         myMap = googleMap;
@@ -137,7 +147,7 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
                     if(webSocket!=null){
                         JSONObject jsonObject = new JSONObject();
                         try {
-                            jsonObject.put("택시식별자",uuid);
+                            jsonObject.put("식별자",user_id);
                             jsonObject.put("택시번호",carNum);
                             jsonObject.put("택시위도",latitude);
                             jsonObject.put("택시경도",longitude);
@@ -174,9 +184,81 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
             // WebSocket 연결이 수립되었을 때 실행되는 부분
             System.out.println("서버와 최초 연결됨");
         }
+        @Override
+        public void onMessage(WebSocket webSocket, String message) {
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = new JSONObject(message);
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+            if(jsonObject.has("connection")) {
+                try {
+                    user_id = jsonObject.getInt("user_id");
+                    String text = jsonObject.getString("msg");
+                    System.out.println(text);
+                    System.out.println("당신의 식별자 : " + user_id);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (jsonObject.has("call_alarm")) {
+                try {
+                    call_user_id = jsonObject.getInt("call_user_id");
+                    System.out.println("서버로부터 메시지 수신: " + message);
+                    call_alarm();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+
+
+            // 수신된 메시지 처리 로직을 작성합니다.
+            // 예: 메시지 파싱, 특정 동작 수행, 다른 클라이언트에게 메시지 전송 등
+            // ...
+
+            // 예시: 수신된 메시지를 그대로 클라이언트에게 다시 전송합니다.
+//            webSocket.send(text);
+        }
 
         // 다른 WebSocketListener의 메서드들을 필요에 따라 오버라이드하여 구현
         // ...
 
+    }
+
+    public void call_alarm() {
+        System.out.println("호출이 왔습니다.");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                AlertDialog.Builder builder = new AlertDialog.Builder(TaxiMap.this);
+                builder.setTitle("알림");
+                builder.setMessage("누군가 택시를 호출하였습니다.");
+                builder.setPositiveButton("예", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        Toast.makeText(getApplicationContext(), "호출 수락", Toast.LENGTH_SHORT).show();
+                        JSONObject jsonObject = new JSONObject();
+                        try {
+                            jsonObject.put("호출수락",true);
+                            jsonObject.put("택시식별자",user_id);
+                            jsonObject.put("승객식별자",call_user_id);
+                            jsonObject.put("택시번호",carNum);
+                            webSocket.send(jsonObject.toString());
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                    }
+                });
+                builder.setNegativeButton("아니오", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        Toast.makeText(getApplicationContext(), "호출 거절", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                builder.show();
+            }
+        });
     }
 }
