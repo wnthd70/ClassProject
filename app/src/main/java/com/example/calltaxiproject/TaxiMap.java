@@ -21,6 +21,8 @@ import androidx.core.content.ContextCompat;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -39,7 +41,7 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
-    Marker myMarker;
+    Marker myMarker, callMarker;
     Circle myCircle;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1; // 권한 요청 식별에 사용되는 값
     private static final int BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE = 2; // 백그라운드 위치 권한 요청 코드
@@ -63,7 +65,7 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
         client = new OkHttpClient();
 
         Request request = new Request.Builder()
-                .url("ws://49.50.172.178:8080")
+                .url("ws://IP:HOST")
                 .build();
 
         WebSocketListener webSocketListener = new TaxiMap.TaxiWebSocketListener();
@@ -108,14 +110,14 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
 
     }
 
-//    @Override
-//    protected void onDestroy() {
-//        super.onDestroy();
-//        if(webSocket!=null){
-//            webSocket.close(1000,"앱 종료됨");
-//            webSocket = null;
-//        }
-//    }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(webSocket!=null){
+            webSocket.close(1000,"앱 종료됨");
+            webSocket = null;
+        }
+    }
 
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
@@ -157,9 +159,9 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
                         }
                         webSocket.send(jsonObject.toString());
                     }
-                    else{ //웹소켓 null부분
-                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
-                    }
+//                    else{ //웹소켓 null부분
+//                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+//                    }
 
                     System.out.println(latlng);
                 }
@@ -209,8 +211,19 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
+            } else if (jsonObject.has("call_location")) {
+                try {
+                    System.out.println("호출 좌표 받음");
+                    double call_lat = jsonObject.getDouble("call_lat");
+                    double call_lon = jsonObject.getDouble("call_lon");
+                    call_location(call_lat, call_lon);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (jsonObject.has("check")) {
+                System.out.println("예약된 손님" + message);
+                callFinish();
             }
-
 
 
             // 수신된 메시지 처리 로직을 작성합니다.
@@ -260,5 +273,34 @@ public class TaxiMap extends AppCompatActivity implements OnMapReadyCallback {
                 builder.show();
             }
         });
+    }
+
+    public void call_location(double lat, double lon){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(callMarker!=null){
+                    callMarker.remove();
+                }
+                LatLng callLoation = new LatLng(lat, lon);
+                callMarker = myMap.addMarker(new MarkerOptions().position(callLoation).title("호출 위치").icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+            }
+        });
+    }
+
+    public void callFinish(){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(callMarker!=null){
+                    callMarker.remove();
+                }
+                AlertDialog.Builder builder = new AlertDialog.Builder(TaxiMap.this);
+                builder.setTitle("알림");
+                builder.setMessage("예약된 손님입니다.");
+                builder.show();
+            }
+        });
+
     }
 }

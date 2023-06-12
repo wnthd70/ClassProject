@@ -69,7 +69,8 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
     private boolean cameraFirst = false;
     private int user_id;
     private String taxiNum;
-
+    private double taxi_lat, taxi_lon;
+    private boolean realTimeTaxiLocation = true;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,7 +81,7 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
         client = new OkHttpClient();
 
         Request request = new Request.Builder()
-                .url("ws://49.50.172.178:8080")
+                .url("ws://IP:HOST")
                 .build();
 
         WebSocketListener webSocketListener = new MyWebSocketListener();
@@ -141,9 +142,9 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         webSocket.send(jsonObject.toString());
                     }
                 }
-                    else{ //웹소켓 null부분
-                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
-                    }
+//                    else{ //웹소켓 null부분
+//                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+//                    }
             }
         });
 
@@ -153,14 +154,14 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
 
 
     }
-//    @Override
-//    protected void onDestroy() {
-//        super.onDestroy();
-//        if(webSocket!=null){
-//            webSocket.close(1000,"앱 종료됨");
-//            webSocket = null;
-//        }
-//    }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(webSocket!=null){
+            webSocket.close(1000,"앱 종료됨");
+            webSocket = null;
+        }
+    }
 
 //    @Override
 //    protected void onStop() { // 앱이 종료될때 업데이트도 중지
@@ -177,6 +178,7 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
         mMap = googleMap;
         BitmapDrawable bitmapDrawable = (BitmapDrawable)getResources().getDrawable(R.drawable.call_marker);
         Bitmap bitmap = bitmapDrawable.getBitmap();
+
         LatLng SEOUL = new LatLng(37.556, 126.97);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(SEOUL, 15));
 
@@ -218,9 +220,11 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                         }
                         webSocket.send(jsonObject.toString());
                     }
-                    else{ //웹소켓 null부분
-                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
-                    }
+//                    else{ //웹소켓 null부분
+//                        Toast.makeText(getApplicationContext(), "서버 생성 안됨", Toast.LENGTH_SHORT).show();
+//                    }
+
+
 //                            myCircle = mMap.addCircle(new CircleOptions()
 //                                    .center(latlng)
 //                                    .radius(100) // 반경 100미터 내
@@ -342,6 +346,15 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
                 } catch (JSONException e){
                     throw new RuntimeException(e);
                 }
+            } else if (jsonObject.has("realTimeLocation")) {
+                try {
+                    taxi_lat = jsonObject.getDouble("taxi_lat");
+                    taxi_lon = jsonObject.getDouble("taxi_lon");
+                    setRealTimeTaxiLocation(taxi_lat, taxi_lon);
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+
             }
             System.out.println("서버로부터 메시지 수신: " + message);
         }
@@ -353,6 +366,21 @@ public class Passenger extends AppCompatActivity implements OnMapReadyCallback {
             @Override
             public void run() {
                 Toast.makeText(getApplicationContext(), "호출한 택시 번호 : "+taxiNum, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    public void setRealTimeTaxiLocation(double taxi_lat, double taxi_lon){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(taxiMarker!=null){
+                    taxiMarker.remove();
+                }
+                LatLng taxiLocation = new LatLng(taxi_lat, taxi_lon);
+//                BitmapDescriptor taxiIcon = BitmapDescriptorFactory.fromResource(R.drawable.taximarker);
+//                taxiMarker = mMap.addMarker(new MarkerOptions().position(taxiLocation).title("택시 위치").icon(taxiIcon));
+                taxiMarker = mMap.addMarker(new MarkerOptions().position(taxiLocation).title("택시 위치").icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
             }
         });
     }
